@@ -6,8 +6,9 @@ import json
 import random
 import time
 
-CLIENT_ID = "ca9886919c9740989371faff193d7fbf"
-CLIENT_SECRET = "2deadc6ec61f4f2db1e5b480866e029a"
+# generate your client id from spotify developer 
+CLIENT_ID = "client id"
+CLIENT_SECRET = "secret - client "
 
 model_name = "gpt2"
 tokenizer = GPT2Tokenizer.from_pretrained(model_name)
