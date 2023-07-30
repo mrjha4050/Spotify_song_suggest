@@ -25,5 +25,5 @@ It suggest you songs according to your taste
 
 6. Run the main.py script in one of two ways
 
-    * As an interactive prompt `python3 playlist_generaotor.py`
+    * As an interactive prompt `streamlit run playlist_generaotor.py`
 
