@@ -1,18 +1,19 @@
-import spotipy
+import spotipy 
 from spotipy.oauth2 import SpotifyClientCredentials
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
-import torch
 import json
 import random
 import time
+import openai
+import streamlit as st
+import os
 
-# generate your client id from spotify developer 
-CLIENT_ID = "client id"
-CLIENT_SECRET = "secret - client "
+# generate your client id from spotify developer c
+CLIENT_ID = ""
+CLIENT_SECRET = ""
 
-model_name = "gpt2"
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-model = GPT2LMHeadModel.from_pretrained(model_name)
+OPENAI_API_KEY = ""
+
+st.title("🎧🎵 Spotify Playlist Generator")
 
 with open('seed_tracks.json', 'r') as f:
     data = json.load(f)
@@ -25,7 +26,6 @@ def authenticate_spotify():
     )
     sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
     return sp
-
 
 def get_track_ids(sp, genre, limit=5):
     track_ids = []
@@ -52,13 +52,21 @@ def generate_seed_tracks(genre):
     seed_data = {
         "seed_tracks": seed_tracks
     }
-
     with open("seed_tracks.json", "w") as f:
         json.dump(seed_data, f, indent=4)
-
     print("New seed track JSON file has been generated.")
 
-user_genre = input("Enter your choice (Hindi, English, or both): ")
+
+if not os.path.exists('seed_tracks.json'):
+    st.info("Generating new seed tracks. Please wait...")
+    generate_seed_tracks("Hindi")  # Default to "Hindi" if no user input
+    st.success("New seed tracks generated.")
+else:
+    with open('seed_tracks.json', 'r') as f:
+        data = json.load(f)
+    seed_tracks = data['seed_tracks']
+
+user_genre = st.text_input("Enter your choice (Hindi, English, or both) : ")
 generate_seed_tracks(user_genre)
 
 
@@ -68,44 +76,41 @@ def get_song_recommendations(user_genre, sp):
     return songs
 
 def chat_with_gpt(input_text):
-    input_ids = tokenizer.encode(input_text, return_tensors="pt")
-    attention_mask = torch.ones(input_ids.shape, dtype=torch.long)
-    response = model.generate(
-        input_ids,
-        attention_mask=attention_mask,
-        pad_token_id=tokenizer.eos_token_id,
-        max_length=50,
-        num_return_sequences=1,
+    response = openai.Completion.create(
+        engine="text-davinci-002",  # Use the appropriate GPT-3 engine
+        prompt=input_text,
+        max_tokens=50,
+        n=1,  # Number of responses to generate
+        stop=None,  # Set stop condition if needed
     )
-    response_text = tokenizer.decode(
-        response[:, input_ids.shape[-1] :][0], skip_special_tokens=True
-    )
+    response_text = response['choices'][0]['text'].strip()
     return response_text
 
-sp = authenticate_spotify()
+def get_suggested_songs(user_genre):
+    sp = authenticate_spotify()
+    return get_song_recommendations(user_genre, sp)
 
-# limit = int(input("Enter the number of songs to suggest: "))
-# user_input = input("Enter your Genre: ")
-suggested_songs = get_song_recommendations(user_genre, sp)
+suggested_songs = get_suggested_songs(user_genre)
 
-print("Searching songs for you...\n")
+# suggested_songs = get_song_recommendations(user_genre, sp)
 
+st.text("Searching songs for you...\n")
 
 with open("quotes.txt", "r") as f:
     quotes = [line.strip() for line in f.readlines()]
 
-print(random.choice(quotes), "\n")
+st.text(random.choice(quotes))
 time.sleep(6)
-print("Suggested songs:")
-print("\n")
+st.text("Suggested songs:")
 
 for song in suggested_songs:
-    print(song)
+    st.text(song)
 
-print("\n")
-print("Link of the songs:")
+# print("\n")
+st.text("Link of the songs:")
 
 def get_track_link(song_name):
+    sp = authenticate_spotify()
     results = sp.search(q=f"track:{song_name}", type="track", limit=1)
     if len(results["tracks"]["items"]) > 0:
         track_id = results["tracks"]["items"][0]["id"]
@@ -119,12 +124,12 @@ for song_name in suggested_songs:
         song_info[song_name] = link
 
 for song_name, link in song_info.items():
-    print(f"{song_name}: {link}\n")
+    st.markdown(f'<a href="{link}" target="_blank">{song_name}</a>', unsafe_allow_html=True)
 
 output_file = "suggested_songs.txt"
-with open(output_file, "a") as f:
+with open(output_file, "w") as f:
     f.write("Suggested songs:\n\n")
     for song_name, link in song_info.items():
         f.write(f"{song_name}: {link}\n")
 
-print("Suggested songs with links have been saved to:", output_file)
+st.text(f"Suggested songs with links have been saved to :suggested_songs.txt")
